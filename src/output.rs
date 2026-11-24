@@ -485,11 +485,14 @@ fn write_analysis(out: &mut impl Write, value: &Value) -> Result<()> {
         .filter(|entry| !entry["path"].as_str().unwrap_or("").contains('/'))
         .filter_map(|entry| entry["bytes"].as_u64())
         .sum::<u64>();
-    writeln!(
-        out,
-        "repo: {path} ({inventoried} files · {} total · {shares})",
-        crate::tree::size(total_bytes)
-    )?;
+    write!(out, "repo: {path} ({inventoried} files")?;
+    if value["tree"]["sizes"] == true {
+        write!(out, " · {} total", crate::tree::size(total_bytes))?;
+    }
+    if !shares.is_empty() {
+        write!(out, " · {shares}")?;
+    }
+    writeln!(out, ")")?;
     if value.get("tree").is_some() {
         crate::tree::render(out, &value["tree"])?;
     }

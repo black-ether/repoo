@@ -41,6 +41,15 @@ pub struct Comments {
     clone_missing: bool,
     #[arg(long, default_value = ".reporeport-cache")]
     cache_dir: PathBuf,
+    /// Levels of children below root entries (0 shows root entries only).
+    #[arg(long, default_value_t = 1)]
+    tree_depth: u16,
+    /// Hide sizes and scan only the displayed tree levels.
+    #[arg(long)]
+    no_tree_sizes: bool,
+    /// Skip the tree and total-size scan.
+    #[arg(long)]
+    no_tree: bool,
 }
 
 pub const VENDOR: &[&str] = &["vendor", "node_modules", "third_party", "third-party"];
@@ -118,8 +127,9 @@ impl Comments {
                     (requested, metrics)
                 };
             metrics["path"] = json!(path);
-            if details {
-                metrics["tree"] = crate::tree::scan(&path);
+            if details && !self.no_tree {
+                metrics["tree"] =
+                    crate::tree::scan(&path, usize::from(self.tree_depth) + 1, !self.no_tree_sizes);
             }
             Ok(metrics)
         });

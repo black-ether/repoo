@@ -58,6 +58,11 @@ Sizes use decimal units (1 KB = 1,000 bytes), rounded for display. The
 total sums file lengths rather than allocated disk space. Read errors
 produce partial sizes and a notice beneath the tree.
 
+`--tree-depth N` controls levels below root entries. Use `0` for root
+entries only or `1` for the default. `--no-tree-sizes` hides sizes and
+walks only the displayed levels. `--no-tree` skips the tree entirely.
+Both switches omit total size from the summary.
+
 ```text
 repo: . (19 files · 4 GB total · 3168L Rust · 488L JSON · 20L TOML · 1L Markdown)
 ```
