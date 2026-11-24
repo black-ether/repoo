@@ -1,0 +1,448 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "repoo record",
+  "oneOf": [
+    {
+      "$ref": "#/$defs/prefilter"
+    },
+    {
+      "$ref": "#/$defs/comments"
+    },
+    {
+      "$ref": "#/$defs/search"
+    }
+  ],
+  "$defs": {
+    "counts": {
+      "type": "object",
+      "properties": {
+        "bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "bytes",
+        "files"
+      ]
+    },
+    "lines": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comments": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blanks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "code",
+        "comments",
+        "blanks",
+        "files"
+      ]
+    },
+    "prefilter": {
+      "type": "object",
+      "properties": {
+        "schema": {
+          "const": 1
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ]
+            }
+          ]
+        },
+        "complexity": {
+          "type": "object"
+        },
+        "phase": {
+          "const": "prefilter"
+        },
+        "repo": {
+          "type": "string"
+        },
+        "classes": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "$ref": "#/$defs/counts"
+            },
+            "prose": {
+              "$ref": "#/$defs/counts"
+            },
+            "data_config": {
+              "$ref": "#/$defs/counts"
+            },
+            "other_binary": {
+              "$ref": "#/$defs/counts"
+            }
+          },
+          "required": [
+            "code",
+            "prose",
+            "data_config",
+            "other_binary"
+          ]
+        },
+        "code_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "prose_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "top_language": {
+          "type": ["object", "null"],
+          "properties": {
+            "language": { "type": "string" },
+            "pct": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "required": ["language", "pct"]
+        },
+        "languages": {
+          "type": "array",
+          "maxItems": 10,
+          "items": {
+            "type": "object",
+            "properties": {
+              "language": {
+                "type": "string"
+              },
+              "bytes": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "pct": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100
+              }
+            },
+            "required": [
+              "language",
+              "bytes",
+              "pct"
+            ]
+          }
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "size_kb": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "description": {
+          "type": ["string", "null"]
+        },
+        "total_bytes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "skipped": {
+          "$ref": "#/$defs/counts"
+        },
+        "truncated": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "schema",
+        "error",
+        "phase",
+        "repo"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "classes",
+              "code_pct",
+              "prose_pct",
+              "languages",
+              "files",
+              "total_bytes",
+              "skipped",
+              "truncated"
+            ]
+          }
+        }
+      ]
+    },
+    "comments": {
+      "type": "object",
+      "properties": {
+        "unclassified_files": { "type": "integer", "minimum": 0 },
+        "references": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array", "uniqueItems": true, "items": { "type": "string" }
+          }
+        },
+        "importers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array", "uniqueItems": true, "items": { "type": "string" }
+          }
+        },
+        "reference_coverage": {
+          "type": "object",
+          "properties": {
+            "status": { "enum": ["partial"] },
+            "method": { "const": "lexical" },
+            "issues": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": { "path": { "type": "string" }, "message": { "type": "string" } },
+                "required": ["path", "message"]
+              }
+            },
+            "limitations": { "type": "array", "items": { "type": "string" } }
+          },
+          "required": ["status", "method", "issues", "limitations"]
+        },
+        "groups": {
+          "type": "array", "minItems": 5, "maxItems": 5,
+          "items": {
+            "allOf": [{ "$ref": "#/$defs/lines" }],
+            "type": "object",
+            "properties": {
+              "group": { "enum": ["source","tests","config_build","docs_assets","data_vendored_generated"] },
+              "counted_files": { "type": "integer", "minimum": 0 },
+              "key_files": {
+                "type": "array", "maxItems": 3,
+                "items": {
+                  "type": "object",
+                  "properties": { "path": { "type": "string" }, "reason": { "type": "string" } },
+                  "required": ["path","reason"]
+                }
+              }
+            },
+            "required": ["group","counted_files","key_files"]
+          }
+        },
+        "largest_directories": {
+          "type": "array", "maxItems": 5,
+          "items": { "$ref": "#/$defs/ranked_path" }
+        },
+        "fixture_directories": {
+          "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "largest_code_files": {
+          "type": "array", "maxItems": 5,
+          "items": { "$ref": "#/$defs/ranked_path" }
+        },
+        "largest_files": {
+          "type": "array", "maxItems": 5,
+          "items": { "$ref": "#/$defs/ranked_path" }
+        },
+        "schema": {
+          "const": 1
+        },
+        "error": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "code",
+                "message"
+              ]
+            }
+          ]
+        },
+        "complexity": {
+          "type": "object"
+        },
+        "phase": {
+          "const": "comments"
+        },
+        "path": {
+          "type": "string"
+        },
+        "code": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comments": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "blanks": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "total_code_lines": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "comment_pct": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "languages": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/lines"
+          }
+        },
+        "repo": {
+          "type": "string"
+        },
+        "prefilter": {
+          "$ref": "#/$defs/prefilter"
+        }
+      },
+      "required": [
+        "schema",
+        "error",
+        "phase",
+        "path"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "error": {
+                "type": "null"
+              }
+            }
+          },
+          "then": {
+            "required": [
+              "code",
+              "comments",
+              "blanks",
+              "files",
+              "total_code_lines",
+              "comment_pct",
+              "languages"
+            ]
+          }
+        }
+      ]
+    },
+    "ranked_path": {
+      "allOf": [
+        { "$ref": "#/$defs/lines" },
+        {
+          "type": "object",
+          "properties": {
+            "path": { "type": "string" },
+            "share_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+          },
+          "required": ["path", "share_pct"]
+        }
+      ]
+    },
+    "search": {
+      "type": "object",
+      "properties": {
+        "tree_files": { "type": "integer", "minimum": 0 },
+        "code_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "prose_pct": { "type": "number", "minimum": 0, "maximum": 100 },
+        "truncated": { "type": "boolean" },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": { "type": "string" },
+            "message": { "type": "string" }
+          },
+          "required": ["code", "message"]
+        },
+        "full_name": {
+          "type": "string"
+        },
+        "size_kb": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "stars": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "pushed_at": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "language": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "full_name",
+        "size_kb",
+        "stars",
+        "pushed_at",
+        "language"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

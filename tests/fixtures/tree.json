@@ -1,0 +1,12 @@
+{
+  "sha": "9fb037999f264ba9a7fc6274d15fa2ae2ab983129",
+  "truncated": true,
+  "tree": [
+    {"path":"src","type":"tree","mode":"040000"},
+    {"path":"src/lib.rs","type":"blob","mode":"100644","size":50},
+    {"path":"README.md","type":"blob","mode":"100644","size":25},
+    {"path":"settings.toml","type":"blob","mode":"100644","size":25},
+    {"path":"vendor/lib.rs","type":"blob","mode":"100644","size":80},
+    {"path":"submodule","type":"commit","mode":"160000"}
+  ]
+}
