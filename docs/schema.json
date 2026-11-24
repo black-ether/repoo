@@ -273,6 +273,26 @@
         "fixture_directories": {
           "type": "object", "additionalProperties": { "type": "integer", "minimum": 0 }
         },
+        "tree": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "issues": { "type": "array", "items": { "type": "string" } },
+            "entries": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "path": { "type": "string" },
+                  "kind": { "enum": ["file","directory","symlink"] },
+                  "bytes": { "type": "integer", "minimum": 0 }
+                },
+                "required": ["path","kind","bytes"]
+              }
+            }
+          },
+          "required": ["name","entries","issues"]
+        },
         "largest_code_files": {
           "type": "array", "maxItems": 5,
           "items": { "$ref": "#/$defs/ranked_path" }

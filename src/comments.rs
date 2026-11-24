@@ -118,6 +118,9 @@ impl Comments {
                     (requested, metrics)
                 };
             metrics["path"] = json!(path);
+            if details {
+                metrics["tree"] = crate::tree::scan(&path);
+            }
             Ok(metrics)
         });
         if let Some(source) = source {

@@ -5,6 +5,46 @@ use std::{
 };
 
 #[test]
+fn tree_includes_ignored_sizes_and_stops_display_at_children() {
+    let repo = tempfile::tempdir().unwrap();
+    for (path, bytes) in [
+        (".gitignore", "target/\n"),
+        ("src/main.rs", "abc"),
+        ("target/debug/deep/file.bin", "12345"),
+        (".git/secret", "hidden"),
+    ] {
+        let file = repo.path().join(path);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(file, bytes).unwrap();
+    }
+    let result = Command::new(env!("CARGO_BIN_EXE_repoo"))
+        .args(["analyze", "--format", "json", "--select", "tree"])
+        .arg(repo.path())
+        .output()
+        .unwrap();
+    assert!(result.status.success(), "{result:?}");
+    let rows: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    let entries = rows[0]["tree"]["entries"].as_array().unwrap();
+    let target = entries.iter().find(|row| row["path"] == "target").unwrap();
+    assert_eq!(target["bytes"], 5);
+    assert!(
+        entries
+            .iter()
+            .any(|row| row["path"] == "target/debug" && row["bytes"] == 5)
+    );
+    assert!(
+        !entries
+            .iter()
+            .any(|row| row["path"].as_str().unwrap().starts_with(".git/"))
+    );
+    assert!(
+        !entries
+            .iter()
+            .any(|row| row["path"].as_str().unwrap().contains("file.bin"))
+    );
+}
+
+#[test]
 fn resolves_manifest_aliases_and_reports_missing_references() {
     let repo = tempfile::tempdir().unwrap();
     for (path, code) in [

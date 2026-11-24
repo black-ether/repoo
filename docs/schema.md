@@ -58,6 +58,20 @@ paths. `largest_code_files` ranks up to five Source or Tests files.
 `fixture_directories` maps visible fixture directory paths to inventoried
 file counts. Group `key_files` entries also include their counted `code` lines.
 
+`tree` includes a root `name`, `entries`, and read-error `issues`.
+Each entry has a relative `path`, `kind` (file, directory, or symlink),
+and `bytes`. The tree displays root entries and their immediate children.
+Directory sizes sum file lengths recursively, including ignored files.
+Git metadata directories are excluded and symlinks are shown with zero
+bytes without following them. Read errors produce partial sizes and are
+listed in `issues`. Tree file totals can exceed the counted inventory.
+Size labels use decimal KB, MB, and GB. Calculating sizes traverses ignored
+build and dependency directories, which can add substantial scan time.
+The table's top-line total sums `bytes` for root-level tree entries,
+including the recursive directory totals exactly once. It measures file
+lengths, including ignored files, with rounded decimal units for display.
+The summary file count continues to refer to the analysis inventory.
+
 `groups` lists Source, Tests, Config / Build, Docs / Assets, and Data /
 Vendored / Generated in that order. Each group has a snake_case `group`
 identifier, `files` inventoried, `counted_files`, counted `code`,

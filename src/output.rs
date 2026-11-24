@@ -478,7 +478,21 @@ fn write_analysis(out: &mut impl Write, value: &Value) -> Result<()> {
         .filter_map(|group| group["files"].as_u64())
         .sum::<u64>()
         + value["unclassified_files"].as_u64().unwrap_or_default();
-    writeln!(out, "repo: {path} ({inventoried} files · {shares})")?;
+    let total_bytes = value["tree"]["entries"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter(|entry| !entry["path"].as_str().unwrap_or("").contains('/'))
+        .filter_map(|entry| entry["bytes"].as_u64())
+        .sum::<u64>();
+    writeln!(
+        out,
+        "repo: {path} ({inventoried} files · {} total · {shares})",
+        crate::tree::size(total_bytes)
+    )?;
+    if value.get("tree").is_some() {
+        crate::tree::render(out, &value["tree"])?;
+    }
     writeln!(out, "\nENTRY & HUBS")?;
     let graph = value["references"].as_object();
     let groups = value["groups"]

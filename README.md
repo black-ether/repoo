@@ -48,6 +48,23 @@ See the [schema reference](docs/schema.md) for supported import forms and
 manifest-resolution limits. The original `comments` command remains available
 for scripts.
 
+The summary line includes the total size of files beneath the analyzed
+directory. The table also shows root entries and one level of children
+with recursive directory sizes. This size scan includes ignored build and dependency files,
+excludes Git metadata, and does not follow symlinks. Large `target/` or
+`node_modules/` directories can increase analysis time. Counts in the
+summary continue to follow the analysis ignore rules.
+Sizes use decimal units (1 KB = 1,000 bytes), rounded for display. The
+total sums file lengths rather than allocated disk space. Read errors
+produce partial sizes and a notice beneath the tree.
+
+```text
+repo: . (19 files · 4 GB total · 3168L Rust · 488L JSON · 20L TOML · 1L Markdown)
+```
+
+This example illustrates how a large build directory contributes to total
+size while the file count and language totals describe analyzed files.
+
 Use `stats=true` to add the repository file count and byte-based code and
 prose shares. It fetches the Git tree for each qualifying repository.
 With `repo=owner/name`, discovery looks up that repository directly and
@@ -111,7 +128,8 @@ add `.exe` to the executable path on Windows. Local measurements appear
 below. The 50,000-line and 100-repository performance targets still need
 representative benchmark checkouts.
 
-On Windows with Rust 1.100.0, ten warm release runs of
+Before the recursive tree-size view was added, on Windows with Rust 1.100.0,
+ten warm release runs of
 `repoo analyze . --format json` on this project's 16 counted files
 (3,462 code lines) measured 24.48 ms median, 23.87 ms minimum, and
 39.99 ms maximum on November 25, 2026. PowerShell's stopwatch included
