@@ -1,173 +1,221 @@
 # repoo
 
-Find GitHub repositories and analyze local checkouts with code counts,
-file groups, entry points, and local file references.
+**Find your next repository. Know where to start reading.**
+
+[![Rust](https://img.shields.io/badge/Rust-1.88%2B-orange?logo=rust)](https://www.rust-lang.org/)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+
+One CLI for exploring GitHub and making sense of a local codebase. Find small
+projects worth studying, then map the files that matter: entry points,
+heavily referenced modules, tests, and configuration.
+
+~~~sh
+# Get oriented in any local checkout.
+repoo analyze .
+
+# Find five small Rust projects with more than 10 stars.
+repoo discover 'lang=rust,size=0-300KB,stars>10,feed=5'
+
+# Export a focused repository map for a script or coding agent.
+repoo analyze . --no-tree --format json --select groups,references,importers
+~~~
+
+## Why repoo?
+
+- **Choose what to read.** Search GitHub by language, size, stars, and last push date. Optionally filter by comment percentage.
+- **Find your bearings.** See language totals, entry points, import hubs, large source files, and useful config and test paths.
+- **Follow local connections.** Inspect detected imports and reverse references without setting up a language server.
+- **Keep the output useful.** Read a compact terminal table, stream NDJSON through a pipeline, or export JSON for your own tools.
+
+Built in Rust, with Tokei for line counting and a shared Rayon worker pool.
+
+For example, analyzing repoo itself reveals where to start reading
+(excerpt from the terminal output):
+
+```text
+ENTRY & HUBS
+  src/main.rs (entry) ──▶ comments, discover, github, inventory, output, prefilter, references, search, tree
+  hubs (by incoming refs): src/comments.rs (3) · src/discover.rs (2) · src/github.rs (2) · src/output.rs (2)
+  coverage: partial (lexical scan, 0 reported issues)
+```
 
 ## Install
 
-Requires Rust 1.88 or newer and Cargo.
+From a checkout, with **Rust 1.88+**:
 
-```sh
+~~~sh
+git clone https://github.com/black-ether/repoo.git
+cd repoo
 cargo install --path . --locked
-```
+repoo --help
+~~~
 
-Git is needed for `--clone-missing`. For GitHub API requests, repoo
-looks for `GITHUB_TOKEN`, then tries `gh auth token`, then uses GitHub’s
-unauthenticated quota and emits a warning. Git cloning uses Git’s own
-credential configuration, with prompts disabled.
+Local analysis needs no GitHub credentials. For GitHub requests, repoo checks
+GITHUB_TOKEN, then tries gh auth token, then falls back to the unauthenticated
+quota with a warning. Git is required when a command clones a repository.
 
-## Workflow
+### Binary builds
 
-```sh
-repoo discover 'keyword=pixle,lang=rust,size=100-300KB,comment>10,stars>10,after=20230429,feed=5,format=json'
-repoo discover 'lang=rust,size=0-300KB,stats=true,feed=5'
+The [build workflow](.github/workflows/build.yml) packages Windows x64 and ARM64,
+Linux x64 and ARM64, and macOS Intel and Apple Silicon. Open **Actions →
+Build binaries → a successful run → Artifacts** on GitHub to download a package.
+Extract it and put repoo (or repoo.exe) on your PATH. Packages include the
+executable, README, license, copyright notice, and a SHA-256 checksum.
+
+Builds run on pushes, pull requests, version tags, or a manual workflow dispatch.
+Artifacts become available after the workflow succeeds. You can always build
+locally with cargo build --release --locked.
+
+## Explore a local codebase
+
+~~~sh
+# Languages, entry points, hubs, file groups, and a directory tree.
+repoo analyze .
+
+# Compare multiple checkouts in one invocation.
+repoo analyze ./frontend ./backend
+
+# Focus on the largest files and language breakdown.
+repoo analyze . --no-tree --format json --select languages,largest_files
+
+# See local dependencies and the files that import them.
+repoo analyze . --no-tree --format json --select references,importers,reference_coverage
+
+# Keep successful results above 1,000 code lines and 10% comments.
+repoo analyze ./frontend ./backend --where 'code_lines>1000 && comment_pct>10'
+~~~
+
+The terminal view highlights entry points, import hubs, selected reference edges,
+four large source/test files, and key paths. Structured output includes the full
+detected reference graph and rankings of up to five files and directories.
+The --select option keeps requested top-level fields plus identifiers and errors.
+
+| Option | Effect |
+| --- | --- |
+| --tree-depth 0 | Show root entries only. Default 1 also shows their children. |
+| --no-tree-sizes | Show the tree without recursively calculating directory sizes. |
+| --no-tree | Skip the tree and total-size scan; useful for large checkouts. |
+| --concurrency 4 | Cap the shared worker pool at four threads. |
+
+Line counts follow ignore rules and normally exclude vendor, generated,
+minified, and binary-looking files. Opt in with --include-vendor,
+--include-generated, --include-minified, --include-binary, or --include-ignored.
+Other inclusion flags still respect ignore rules.
+
+Tree sizes include ignored build and dependency files, exclude Git metadata,
+and never follow symlinks. Large target/ or node_modules/ directories can make
+the size scan slower. Sizes sum file lengths in decimal units, rather than
+allocated disk space. Read errors produce partial sizes and a notice.
+
+## Discover something worth reading
+
+~~~sh
+# Small projects with recent activity.
+repoo discover 'lang=rust,size=0-300KB,stars>10,after=20260101,feed=5'
+
+# Add file counts and byte-based code/prose shares without cloning.
+repoo discover 'lang=python,size=0-500KB,stats=true,feed=5'
+
+# Find comment-rich projects; shallow-clones candidates as needed.
+repoo discover 'keyword=parser,lang=rust,comment>10,limit=50,feed=5'
+
+# Inspect a known repository; tree stats are on by default here.
 repoo discover 'repo=chrislgarry/Apollo-11'
-repoo analyze ./ripgrep ./log
-repoo analyze . --format json --select languages,largest_files
-repoo analyze . --format json --select groups,unclassified_files
-repoo analyze . --format json --select references
-repoo analyze . --format json --select references,importers,reference_coverage
-```
 
-Quote the whole discovery query in PowerShell. Size ranges are inclusive.
-`stars>10` requires more than 10 stars and `after=20230429` filters by
-push date. `comment>10` shallow-clones candidates as needed and keeps
-repos with more than 10% comment lines. Omit that filter for GitHub
-metadata only. `limit` caps GitHub candidates and defaults to 20.
-`feed=5` stops after five successful matches. Error records still appear
-and do not count toward that cap.
-The default output format is table.
+# Export discovery results.
+repoo discover 'lang=rust,size=0-300KB,feed=5,format=json'
+~~~
 
-`analyze` summarizes local code, comments, blank lines, and counted files.
-The compact table shows language totals, entry points, hubs, selected edges,
-the four largest code files, and key config, documentation, and test paths.
-Structured output includes all languages, five file and directory rankings,
-file groups, and the full detected reference graph. Reference coverage is
-reported as partial because detection uses language-specific lexical rules.
-See the [schema reference](docs/schema.md) for supported import forms and
-manifest-resolution limits. The original `comments` command remains available
-for scripts.
+Quote the **whole query**, especially in PowerShell.
 
-The summary line includes the total size of files beneath the analyzed
-directory. The table also shows root entries and one level of children
-with recursive directory sizes. This size scan includes ignored build and dependency files,
-excludes Git metadata, and does not follow symlinks. Large `target/` or
-`node_modules/` directories can increase analysis time. Counts in the
-summary continue to follow the analysis ignore rules.
-Sizes use decimal units (1 KB = 1,000 bytes), rounded for display. The
-total sums file lengths rather than allocated disk space. Read errors
-produce partial sizes and a notice beneath the tree.
+| Query term | Meaning |
+| --- | --- |
+| keyword=parser | GitHub repository search keyword. |
+| lang=rust | Primary repository language. |
+| size=0-300KB | Inclusive range using GitHub's reported repository size. |
+| stars>10 | Strictly more than 10 stars. |
+| after=20260101 | Last push after the date; 2026-01-01 also works. |
+| comment>10 | More than 10% comment lines: 100 × comments / (code + comments). Requires local counting. |
+| limit=50 | Inspect at most 50 candidates; default 20, maximum 1,000. |
+| feed=5 | Stop after five successful matches. Errors remain visible and do not count toward this cap. |
+| stats=true | Add Git tree file counts and byte-based composition. |
+| format=json | Choose table (default), json, ndjson, or toon. |
+| repo=owner/name | Inspect one known repository instead of searching; stats=false skips its tree lookup. |
 
-`--tree-depth N` controls levels below root entries. Use `0` for root
-entries only or `1` for the default. `--no-tree-sizes` hides sizes and
-walks only the displayed levels. `--no-tree` skips the tree entirely.
-Both switches omit total size from the summary.
+Without comment filtering, discovery uses GitHub metadata. Tree stats fetch
+paths and blob sizes without downloading file contents. Comment filtering
+shallow-clones into .reporeport-cache/owner/repo/commit-sha. Cached checkouts
+stay pinned to their saved commit and reuse counts for the same flags; treat
+them as immutable. Cloning uses Git's credentials with prompts disabled.
 
-```text
-repo: . (19 files · 4 GB total · 3168L Rust · 488L JSON · 20L TOML · 1L Markdown)
-```
+## Build a pipeline
 
-This example illustrates how a large build directory contributes to total
-size while the file count and language totals describe analyzed files.
+Analyze one local checkout per line in repos.txt:
 
-Use `stats=true` to add the repository file count and byte-based code and
-prose shares. It fetches the Git tree for each qualifying repository.
-With `repo=owner/name`, discovery looks up that repository directly and
-includes tree stats by default. Use `stats=false` to skip the tree request.
-Both modes accept `comment>…` and `format=…`. The `prefilter` command
-remains available for existing scripts and its full tree breakdown.
+~~~sh
+repoo analyze --stdin --no-tree --format ndjson < repos.txt
+~~~
 
-```powershell
-repoo discover 'lang=rust,feed=5,stats=true'
-```
+In PowerShell:
 
-The hidden compatibility command `prefilter` makes one repository metadata
-request to find the default branch and one
-recursive Git Trees request per repository, before retries. It requests
-tree metadata and blob sizes without cloning or reading blob contents.
-It processes eight repositories concurrently by default. Discover checks
-candidates sequentially and stops when `feed` is satisfied or `limit` is reached.
-Blocking reqwest keeps
-HTTP scheduling in the bounded worker pool, and reuses one Rustls client.
-`--verbose` reports rate-limit headers. Retries share a cooldown and wait
-up to 60 seconds per delay.
+~~~powershell
+Get-Content repos.txt | repoo analyze --stdin --no-tree --format ndjson
+~~~
 
-Prefilter skips common vendor, generated, minified, and lockfile paths.
-For `prefilter`, use repeatable `--skip '**/fixtures/**'` patterns to add exclusions, or
-`--no-default-skip` to replace the defaults. Comments respects local ignore
-rules and skips vendor, generated, minified, and binary-looking files by
-default. Its `--include-*` flags let you opt in. Existing paths take
-precedence over GitHub slugs. Cloned checkouts live under
-`CACHE/owner/repo/commit-sha`. Cache hits stay pinned to the saved commit and reuse counts for the same flags. Treat cached checkouts as immutable.
+Or discover remote repositories and analyze their checkouts:
 
-See the [field reference](docs/schema.md) and run `repoo schema` to
-get the machine-readable schema. The default is a human-readable table.
-Use `--format ndjson` on each producer that feeds another repoo command,
-or `--format json` for a single JSON array. `--format toon` writes one
-document after the batch completes and requires the official `toon` CLI
-on PATH (`npm install -g @toon-format/cli`).
-Logs go to stderr. Exit codes are 0 for success, 1 for fatal
-errors, and 2 when any repository failed. On `analyze` and the compatibility
-commands, `--where` (alias `--filter`)
-accepts numeric comparisons joined by `&&`. Available operators are
-`<`, `<=`, `>`, `>=`, `==`, and `!=`. Use top-level numeric phase
-metrics in the expression, with `code_lines` as an alias for
-`total_code_lines`. Merged outputs also support prefilter-only metrics.
+~~~sh
+repoo discover 'lang=rust,size=0-300KB,feed=3,format=ndjson' | repoo analyze --stdin --clone-missing --no-tree --format ndjson
+~~~
 
-## Performance
+Use **NDJSON between commands**: each line is one record, emitted as work
+completes. JSON produces one array. TOON produces one document after the batch
+and requires the official toon CLI on PATH (npm install -g @toon-format/cli).
+Logs go to stderr.
 
-The local walker applies ignore and exclusion rules before reading.
-Tokei parses the selected files as a library. Both repository work and
-per-file parsing use one Rayon pool, so their parallelism shares the same
-thread budget. Compare the default against one worker on a warm checkout
-near 50,000 lines using Hyperfine:
+| Exit code | Meaning |
+| --- | --- |
+| 0 | Success. |
+| 1 | Fatal error. |
+| 2 | One or more repository failures; inspect result errors. |
 
-```sh
-cargo build --release
-hyperfine --warmup 5 'target/release/repoo analyze ./checkout --format ndjson' 'target/release/repoo analyze ./checkout --format ndjson --concurrency 1'
-hyperfine --warmup 3 'target/release/repoo analyze --stdin --format ndjson < repos.txt'
-```
+The --where option (alias --filter) accepts top-level numeric comparisons joined
+by &&: <, <=, >, >=, ==, and !=. Failed records remain visible.
+The code_lines field aliases total_code_lines.
 
-Use a `repos.txt` with one local checkout per line for the batch test and
-add `.exe` to the executable path on Windows. Local measurements appear
-below. The 50,000-line and 100-repository performance targets still need
-representative benchmark checkouts.
+The hidden comments and prefilter commands remain available for existing
+scripts. See the [schema reference](docs/schema.md) for field definitions,
+import resolution, and error shapes. Print the JSON Schema with repoo schema.
 
-Before the recursive tree-size view was added, on Windows with Rust 1.100.0,
-ten warm release runs of
-`repoo analyze . --format json` on this project's 16 counted files
-(3,462 code lines) measured 24.48 ms median, 23.87 ms minimum, and
-39.99 ms maximum on November 25, 2026. PowerShell's stopwatch included
-process startup and output consumption. These measurements cover this
-small checkout.
+## Know the boundaries
 
-## Development checks
+- **References are hints.** Lexical rules detect local imports in Rust, JavaScript/TypeScript, Python, PowerShell, Bash, C/C++, C#, Java, Go, and Ruby. Dynamic loading, build conditions, and some manifest features leave gaps. Coverage is partial; see the [resolution details](docs/schema.md#local-analysis).
+- **Bytes and lines measure different things.** Tree composition estimates use paths, extensions, and blob sizes. Local counts use files Tokei recognizes, including supported prose and configuration languages.
+- **GitHub has limits.** Search caps results at 1,000 and can return incomplete pages. Large recursive trees can be truncated; the truncated field marks partial tree metrics.
+- **No complexity score yet.** Schema v1 reserves complexity for a future extension.
 
-```sh
+## Develop
+
+~~~sh
 cargo fmt --check
 cargo test --locked
 cargo clippy --locked --all-targets -- -D warnings
 cargo build --release --locked
-```
+~~~
 
-Tests use local fixtures and recorded tree-response examples. Live GitHub
-and clone verification requires network access. JSON, NDJSON, and table
-output run in the Rust binary. TOON output invokes the installed encoder.
+Tests use local fixtures and recorded tree responses. Live GitHub and clone
+checks need network access. Benchmark your checkout with
+[Hyperfine](https://github.com/sharkdp/hyperfine):
 
-## Limitations
+~~~sh
+hyperfine --warmup 5 'target/release/repoo analyze ./checkout --no-tree --format ndjson' 'target/release/repoo analyze ./checkout --no-tree --format ndjson --concurrency 1'
+~~~
 
-- Prefilter estimates from extensions, paths, and bytes. Comments provides
-  line-exact counts for the files Tokei recognizes.
-- GitHub’s Languages API omits prose languages, so prefilter uses Git Trees.
-- GitHub can truncate very large recursive trees. Prefilter reports the
-  partial metrics and sets `truncated`.
-- GitHub caps a search at 1,000 results and can return an incomplete page.
-- Binary detection in comments checks for NUL bytes after BOM-aware
-  decoding. Files without a recognized language are outside the line counts.
-- Schema v1 reserves `complexity` for a future extension.
+On Windows, use target/release/repoo.exe. Representative large-repository
+benchmarks are still needed; performance depends on checkout contents and
+whether recursive tree sizes are enabled.
 
-GitHub references
-[Git Trees](https://docs.github.com/en/rest/git/trees),
-[Search](https://docs.github.com/en/rest/search/search#search-repositories),
-[Rate limits](https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api).
+## License
 
+Copyright 2026 **Black-Ether (JoJo)**. Licensed under the
+[Apache License, Version 2.0](LICENSE).
